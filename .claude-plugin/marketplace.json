@@ -1,0 +1,27 @@
+{
+  "name": "explain-diff",
+  "owner": {
+    "name": "spencer0124"
+  },
+  "metadata": {
+    "description": "Single-plugin marketplace for the explain-diff skill.",
+    "version": "1.0.0",
+    "pluginRoot": "."
+  },
+  "plugins": [
+    {
+      "name": "explain-diff",
+      "source": "./",
+      "description": "Explain a code change as a self-contained interactive HTML page — background, glossary, intuition, literate code walkthrough, and a five-question self-check quiz.",
+      "version": "1.0.0",
+      "keywords": [
+        "diff",
+        "code-review",
+        "explanation",
+        "documentation",
+        "onboarding",
+        "quiz"
+      ]
+    }
+  ]
+}

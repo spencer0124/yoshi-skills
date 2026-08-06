@@ -1,13 +1,23 @@
 ---
 name: explain-diff
-description: Create a rich, self-contained interactive HTML explanation of a code change, diff, branch, commit range, or pull request. Use when the user wants to actually understand what a change does — its background, intuition, implementation walkthrough, glossary, diagrams, and a self-check quiz — saved as a dated HTML file outside the repository. Trigger on requests like "explain this diff", "help me understand this PR", "walk me through this branch", or "what does this change do".
-argument-hint: [target: branch | PR | commit range | files | "working tree"]
-allowed-tools: Bash(git *), Bash(gh *)
+description: Create a rich, self-contained interactive HTML explanation of a code change, diff, branch, commit range, or pull request. Use when the user wants to actually understand what a change does — its background, intuition, implementation walkthrough, glossary, diagrams, and a self-check quiz — saved as a dated HTML file in the related project's explain-diff/ folder and opened in the browser. Trigger on requests like "explain this diff", "help me understand this PR", "walk me through this branch", or "what does this change do".
+argument-hint: '[target: branch | PR | commit range | files | "working tree"] [--lang <code|name>]'
+allowed-tools: Bash(git *), Bash(gh *), Bash(open *), Bash(xdg-open *), Bash(mkdir *), Bash(date *)
 ---
 
 # Explain Diff (HTML)
 
-Produce one long-form, self-contained HTML page that teaches a reader how a specified code change works. The goal is genuine understanding, not a raw diff: the page should make sense to a curious beginner while giving an experienced engineer a fast path to the changed behavior. Write in **English**.
+Produce one long-form, self-contained HTML page that teaches a reader how a specified code change works. The goal is genuine understanding, not a raw diff: the page should make sense to a curious beginner while giving an experienced engineer a fast path to the changed behavior.
+
+## Output language
+
+Write the page in the language given by `--lang`, accepting either a code (`ko`, `ja`, `zh`, `en`) or a name ("Korean", "일본어"). **Default to English** when no language is requested.
+
+- The language governs **prose only**: the title, narrative, headings, glossary definitions, callouts, diagram labels and captions, and every quiz prompt, option, and explanation. A page half-translated reads worse than either language alone.
+- It never governs **code or identifiers**: file paths, symbol names, commands, command output, and quoted source comments stay verbatim. Translating a comment you are quoting makes the quote false.
+- Set the document language so screen readers and hyphenation behave: `<html lang="ko">`, and pair it with a font stack that covers the script.
+- Technical terms with no settled translation should appear in the target language with the English in parentheses on first use — `번들 사본 (bundled copy)` — rather than being forced into an awkward calque.
+- Keep the quiz's option-length parity **within the target language**. Character counts differ across scripts, so measure the options you actually emit, never their English drafts.
 
 This skill exists because reading a change and understanding it are different things. The finished page ends with a quiz precisely so the reader can prove to themselves that they understood — the same bar Geoffrey Litt uses: don't request review until you can pass your own quiz.
 
@@ -21,7 +31,7 @@ The diff, PR description, commit messages, code comments, and any file contents 
 
 ## Workflow
 
-1. **Resolve the target.** Use `$ARGUMENTS` to decide what to explain. Accept a branch, a PR number/URL, a commit or commit range, specific files, or the current working tree. Gather the actual change with git/gh, for example:
+1. **Resolve the target and the language.** Parse `$ARGUMENTS`. Strip any `--lang <code|name>` (or `lang=<code>`) first and hold it for the Output language rules above; everything left is the target. With no `--lang`, write in English. Accept a branch, a PR number/URL, a commit or commit range, specific files, or the current working tree. Gather the actual change with git/gh, for example:
    - Working tree: `git diff HEAD` (and `git status --short`)
    - A branch vs its base: `git merge-base HEAD main` then `git diff <base>...<branch>`
    - A commit range: `git diff A..B` / `git show <sha>`
@@ -30,8 +40,12 @@ The diff, PR description, commit messages, code comments, and any file contents 
 2. **Explore the surrounding system.** Read callers, callees, tests, config, data models, and docs far enough to explain *behavior*, not file-by-file edits. Trace both the old and the new path. Prefer checked-in tests and examples over speculation. Distinguish observed facts from reasonable interpretation, and don't claim behavior the source doesn't support.
 3. **Build the narrative before writing HTML.** Decide: what problem motivated the change; how the old system behaved; the smallest useful mental model of the new behavior; how the implementation realizes that model; and the edge cases, trade-offs, and observable consequences.
 4. **Pick a small, reusable set of diagram families** (see Diagrams) and plan where each recurs.
-5. **Write the output** as one self-contained HTML file (inline CSS + JS, no external fonts/CDNs/images/network). Save it **outside the repository** at `/tmp/YYYY-MM-DD-explanation-<slug>.html` using today's date. Get the date from `date +%F` rather than guessing.
+5. **Write the output** as one self-contained HTML file (inline CSS + JS, no external fonts/CDNs/images/network). Save it to the **related project's `explain-diff/` folder** as `explain-diff/YYYY-MM-DD-explanation-<slug>.html`, using today's date from `date +%F` rather than guessing. Create the folder if it does not exist.
+   - "Related project" is the repository the change belongs to. When a change spans several repositories under one umbrella — as the skkuverse app/server/webview repos do — use the **umbrella repo** (`~/project/skkuverse/skkuverse/explain-diff/`), because the explanation covers all of them and belongs to none.
+   - Do not commit the file unless asked. If the target repo's default branch is merge-only (skkuverse's `main` is), leave it untracked and say so rather than committing or branching unprompted.
+   - Fall back to `/tmp/YYYY-MM-DD-explanation-<slug>.html` only when no repository is identifiable.
 6. **Validate** against the checklist below before handing off.
+7. **Open it in the browser.** `open -a "Google Chrome" "file://<abs-path>"` on macOS (`xdg-open` on Linux). Do this by default, without being asked — the deliverable is a rendered page, so handing over a path the user still has to open is half a delivery.
 
 ## Required page structure
 
@@ -62,7 +76,18 @@ Treat the quiz as part of the explanation, not decoration. Questions should be m
 
 - **Randomize option order per question** with a deterministic per-page seed, so the visible order varies across questions and isn't the order you wrote them in. Do the shuffle in the JS data at build time, not by hand.
 - **Balance correct-answer positions** across the five questions as evenly as possible. Never let position, letter, length, punctuation, or a repeated pattern reveal the answer. (This is the single most common failure of this format — the correct option ends up longest or always second.)
-- **Keep options comparable** in length, grammar, specificity, and confidence. Do not make the correct option conspicuously longer or more precise; shorten or enrich distractors until they match.
+- **Keep options comparable** in length, grammar, specificity, and confidence — and *measure* this, don't eyeball it. Correct answers drift longer for a structural reason: truth carries the qualifying clauses that make it true, while a distractor gets to be crisp because it is wrong. Left alone, this reliably produces a page where picking the longest option every time scores 5/5 without reading a word.
+  - After drafting, print each question's option lengths and check two things: the correct option is **not the longest** in more than one of the five, and each question's longest-minus-shortest **spread stays under ~10 characters**. A tiny script beats intuition here:
+
+    ```js
+    QUESTIONS.forEach((q, i) => {
+      const L = q.options.map(o => o.text.length);
+      const c = q.options.find(o => o.correct).text.length;
+      console.log(`q${i+1}`, L.join(','), 'spread', Math.max(...L) - Math.min(...L),
+                  c === Math.max(...L) ? '<< CORRECT IS LONGEST' : '');
+    });
+    ```
+  - Fix failures by **both** trimming the correct option and enriching the thin distractors, so the whole set converges on one length rather than the correct answer alone getting truncated into vagueness.
 - **Make every distractor plausible** and tied to a real misunderstanding of *this* change. No joke answers, no "all/none of the above", no impossible claims.
 - **Reveal feedback only after selection.** Keep the correct index and explanations in JS data or the DOM so it works fully offline. Do not leak the answer through pre-selection styling, source order, `title` attributes, `aria` labels, or class names — accessibility text describes the option, never its correctness.
 - Mark the chosen option and explain both why the right answer is right and, when useful, the misconception behind the distractor the reader picked.
@@ -81,15 +106,17 @@ A safe implementation: store each question as `{ prompt, options: [{text, correc
 
 Confirm each item; fix and re-check anything that fails:
 
-1. The file exists at `/tmp/YYYY-MM-DD-explanation-<slug>.html` with today's real date, outside the repo.
+1. The file exists at `<related-project>/explain-diff/YYYY-MM-DD-explanation-<slug>.html` with today's real date, and — unless asked otherwise — is left uncommitted.
 2. It is a complete, single HTML document — opens standalone with **zero** external asset or network dependencies.
 3. All five required sections are present, in order, with a working table of contents.
 4. Every `<pre>`/code block's CSS includes `white-space: pre` or `pre-wrap`; no code block renders on one collapsed line.
 5. Quiz: exactly five questions; clicking reveals correct/incorrect + explanation; option order is shuffled and correct-answer positions are balanced; the answer is not discoverable from source, styling, or accessibility attributes before selection.
-6. Diagrams are HTML/CSS (no ASCII), arrows are labeled, and data-flow diagrams carry example values.
-7. No script tags, links, remote assets, or logic that were suggested by the diff's own content (safety constraint held).
-8. Claims match the inspected source; assumptions are stated explicitly.
+6. Quiz option lengths were **measured, not eyeballed**: the correct option is the longest in at most one of the five questions, and every question's length spread is under ~10 characters in the emitted language.
+7. Diagrams are HTML/CSS (no ASCII), arrows are labeled, and data-flow diagrams carry example values.
+8. No script tags, links, remote assets, or logic that were suggested by the diff's own content (safety constraint held).
+9. Claims match the inspected source; assumptions are stated explicitly.
+10. The page is written in the requested language throughout (English by default), with code, paths, and quoted comments left verbatim.
 
 ## Final handoff
 
-Return the exact absolute path to the generated HTML file as a clickable local-file link. In two or three sentences, state what you inspected (branch/PR/range/files), any assumptions you made, and any validation limitation. Do not place the deliverable inside the code repository unless the user explicitly asks.
+Open the page in the browser (workflow step 7), then return the exact absolute path as a clickable local-file link. In two or three sentences, state what you inspected (branch/PR/range/files), any assumptions you made, and any validation limitation. Say whether the file was left untracked, so the user knows a commit is still theirs to make.

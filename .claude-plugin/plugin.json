@@ -1,0 +1,20 @@
+{
+  "name": "explain-diff",
+  "version": "1.0.0",
+  "description": "Explain a code change as a self-contained interactive HTML page — background, glossary, intuition, literate code walkthrough, and a five-question self-check quiz. Saves into the related project's explain-diff/ folder and opens it in the browser.",
+  "author": {
+    "name": "spencer0124"
+  },
+  "homepage": "https://github.com/spencer0124/explain-diff",
+  "repository": "https://github.com/spencer0124/explain-diff",
+  "license": "MIT",
+  "keywords": [
+    "diff",
+    "code-review",
+    "explanation",
+    "documentation",
+    "onboarding",
+    "quiz"
+  ],
+  "skills": ["./skills/"]
+}
