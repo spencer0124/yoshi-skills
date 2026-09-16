@@ -166,7 +166,9 @@ figure{margin:8px 0}
 figcaption{color:var(--n-fg-muted);font-size:14px;margin-top:6px;text-align:center}
 .mermaid{background:var(--n-surface);border-radius:var(--n-radius);padding:16px;overflow-x:auto;text-align:center}
 .mermaid svg{max-width:100%;height:auto}
-.mermaid:not([data-processed]){color:transparent}   /* 원본 소스가 보이는 깜빡임 방지 */
+/* 렌더 전이나 실패 시 소스를 코드처럼 보여준다. 숨기면 실패가 빈 칸이 된다 */
+.mermaid:not([data-processed]){white-space:pre;text-align:left;
+     font-family:var(--n-mono);font-size:85%;color:var(--n-fg-muted)}
 
 /* ---------- 인라인 아이콘 (icon.py 출력) ---------- */
 .ico{display:inline-block;width:1.1em;height:1.1em;vertical-align:-.17em;flex:none;

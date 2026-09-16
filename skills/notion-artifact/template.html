@@ -113,11 +113,19 @@ flowchart LR
 
 <!-- 도표가 없으면 아래 스크립트를 지운다 -->
 <script type="module">
-if (document.querySelector('.mermaid')) {
-  const mermaid = (await import('https://cdn.jsdelivr.net/npm/mermaid@11/+esm')).default;
-  const dark = matchMedia('(prefers-color-scheme: dark)').matches
-            && document.documentElement.dataset.theme !== 'light';
-  mermaid.initialize({ startOnLoad: true, securityLevel: 'strict',
-                       theme: dark ? 'dark' : 'neutral', fontFamily: 'inherit' });
+const blocks = document.querySelectorAll('.mermaid');
+if (blocks.length) {
+  try {
+    const mermaid = (await import('https://cdn.jsdelivr.net/npm/mermaid@11/+esm')).default;
+    const dark = matchMedia('(prefers-color-scheme: dark)').matches
+              && document.documentElement.dataset.theme !== 'light';
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict',
+                         theme: dark ? 'dark' : 'neutral', fontFamily: 'inherit' });
+    /* startOnLoad 를 쓰면 안 된다. 동적 import 가 DOMContentLoaded 뒤에 끝나서
+       mermaid 의 자동 실행이 이벤트를 놓친다. 직접 run 한다 */
+    await mermaid.run({ nodes: blocks });
+  } catch (e) {
+    console.error('mermaid 렌더 실패. 도표 자리에 소스가 그대로 남는다', e);
+  }
 }
 </script>

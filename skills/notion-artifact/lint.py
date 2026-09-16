@@ -52,6 +52,7 @@ class Page(HTMLParser):
         self.figures: list[list] = []   # [line, figcaption 있음]
         self.has_toc = False
         self._is_title = False
+        self._in_mermaid = False
         self.pre = 0
         self.step_details: list[int] = []   # 절차 단계 안에 접힌 토글
         self.hr = 0
@@ -117,6 +118,8 @@ class Page(HTMLParser):
         if tag == "div" and "mermaid" in cls:
             self._fl("body", line)
             self.pre += 1                      # 도표도 시각 블록으로 센다
+            self._in_mermaid = True            # 도표 소스는 코드다. 본문 규칙에서 뺀다
+            self._skip += 1
         if tag == "div" and "callout" in cls:
             self._callout += 1
             self._fl("callout", line)
@@ -158,6 +161,9 @@ class Page(HTMLParser):
             self._icon = max(0, self._icon - 1)
             return
         if tag == "div":
+            if self._in_mermaid:               # mermaid 소스에는 태그가 없어서 첫 </div> 가 제 짝이다
+                self._in_mermaid = False
+                self._skip = max(0, self._skip - 1)
             self._callout = max(0, self._callout - 1)
         if tag == "details":
             self._details = max(0, self._details - 1)
@@ -333,6 +339,22 @@ BANNED = [
 
 # 문장 종결로만 판정하는 규칙 (조합 음절 때문에 단순 포함 검사로는 오탐·미탐이 난다)
 HONORIFIC = re.compile(r"(니다|[아어]요|세요|네요|죠|군요|구요)\s*[.!?]?$")
+
+
+def is_honorific(s: str) -> bool:
+    """문장 끝이 경어체인가. '아니다', '지니다' 처럼 니다로 끝나는 평서형을 거른다."""
+    m = HONORIFIC.search(s)
+    if not m:
+        return False
+    if m.group(1) != "니다":
+        return True
+    i = m.start(1) - 1
+    if i < 0:
+        return False
+    c = s[i]
+    # 경어체는 -ㅂ니다 / -습니다 뿐이다. 앞 음절 종성이 ㅂ(인덱스 17)이어야 한다.
+    # "합니다"의 합, "입니다"의 입, "습니다"의 습 은 전부 종성 ㅂ. "아니다"의 아 는 종성이 없다
+    return "가" <= c <= "힣" and (ord(c) - 0xAC00) % 28 == 17
 
 # 빈도 초과부터 실패 (S2). scope: doc | block
 DENSITY = [
@@ -544,7 +566,7 @@ def check(src: str, ignore: set[str],
         if b.text.startswith(CONJUNCTIONS):
             conj_lines.append((b.line, b.text))
         for s in sentences(b.text):
-            if HONORIFIC.search(s):
+            if is_honorific(s):
                 add("K-32", b.line, s, "평서체 '~다'로 통일. 경어체 혼용 금지")
             if b.tag not in ("td", "th", "summary") and len(s) > 60:
                 add("K-31", b.line, s, f"한 문장 한 생각, 40~50자. 지금 {len(s)}자")
@@ -728,16 +750,27 @@ GOOD = """<html><head><title>가격 정책 변경</title></head><body>
 
 
 # 걸리면 안 되는 문서. 규칙을 조인 뒤 오탐이 나는 자리를 지킨다
-CLEAN_CASES: list[tuple[str, str, str]] = [
+CLEAN_CASES: list[tuple[str, str, str, tuple]] = [
+    ("mermaid 소스는 본문 문장이 아니다",
+     '<figure><div class="mermaid">flowchart LR\n'
+     '  subgraph CI["자동 GitHub Actions"]\n    direction LR\n'
+     '    A["dev 머지"] --> B["RC 컷"] --> C["final 컷"]\n  end\n</div>'
+     "<figcaption>왼쪽에서 오른쪽으로 한 번만 바뀐다.</figcaption></figure><p>값</p>",
+     None, ("K-31", "K-30", "K-22", "F-05")),
+    ("아니다는 평서체다",
+     "<p>이것은 선택 사항이 아니다.</p><p>고집을 지니다.</p>",
+     None, ("K-32",)),
     ("롤백이 토글 요약에 있는 절차",
      "<h2>배포 절차</h2><ol><li>이미지를 빌드한다</li><li>staging 에 배포한다</li>"
      "<li>응답을 확인한다</li></ol>"
      "<details><summary>롤백으로 안 돌아오는 것</summary>"
-     "<div class=\"body\"><p>덤프를 restore 한다.</p></div></details>", "procedure"),
+     "<div class=\"body\"><p>덤프를 restore 한다.</p></div></details>", "procedure",
+     ("P-01", "P-02")),
     ("대안이 토글 요약에 있는 판단 문서",
      "<h2>바꾸는 값</h2><p>기본 요금을 내린다.</p>"
      "<details><summary>검토한 대안 2개</summary>"
-     "<div class=\"body\"><p>동결과 인상을 봤다.</p></div></details>", "decision"),
+     "<div class=\"body\"><p>동결과 인상을 봤다.</p></div></details>", "decision",
+     ("D-01", "D-02")),
 ]
 
 
@@ -759,9 +792,9 @@ def selftest() -> None:
             wrong.append(f"{want} 문서를 {got}({sc}점)로 봤다")
     assert not wrong, "유형 오분류: " + "; ".join(wrong)
 
-    for name, doc, forced in CLEAN_CASES:
+    for name, doc, forced, rules in CLEAN_CASES:
         extra, _, _ = check(WRAP.format("결론 한 줄이다.", doc), set(), forced)
-        hit = [f for f in extra if f.rule in ("P-01", "P-02", "D-01", "D-02")]
+        hit = [f for f in extra if f.rule in rules]
         assert not hit, f"오탐({name}):\n" + "\n".join(map(str, hit))
 
     clean, dt, _ = check(GOOD, set())
@@ -769,7 +802,8 @@ def selftest() -> None:
     ignored, _, _ = check(WRAP.format("결론 한 줄이다.", "<p>값이 <b>바뀐다</b>.</p>"), {"F-01"})
     assert not any(f.rule == "F-01" for f in ignored), "--ignore 가 먹지 않는다"
     print(f"selftest 통과: 규칙 {len(CASES)}개 검출 · "
-          f"유형 판정 {len(TYPE_CASES)}건 · 정상 문서 오탐 0건")
+          f"유형 판정 {len(TYPE_CASES)}건 · 오탐 회귀 {len(CLEAN_CASES)}건 · "
+          f"정상 문서 오탐 0건")
 
 
 def main(argv: list[str]) -> int:
