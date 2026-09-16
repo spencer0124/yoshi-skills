@@ -1,20 +1,13 @@
 {
-  "name": "explain-diff",
-  "version": "1.0.0",
-  "description": "Explain a code change as a self-contained interactive HTML page — background, glossary, intuition, literate code walkthrough, and a five-question self-check quiz. Saves into the related project's explain-diff/ folder and opens it in the browser.",
+  "name": "yoshi-skills",
+  "version": "2.0.0",
+  "description": "A collection of personal Claude skills: explain-diff (a code change as an interactive HTML explainer), notion-artifact (Notion-looking HTML artifacts), deep-concrete-explainer (concrete, background-first explanations in Korean), tone-polish-kr (Korean messenger/email tone polishing).",
   "author": {
     "name": "spencer0124"
   },
-  "homepage": "https://github.com/spencer0124/explain-diff",
-  "repository": "https://github.com/spencer0124/explain-diff",
+  "homepage": "https://github.com/spencer0124/yoshi-skills",
+  "repository": "https://github.com/spencer0124/yoshi-skills",
   "license": "MIT",
-  "keywords": [
-    "diff",
-    "code-review",
-    "explanation",
-    "documentation",
-    "onboarding",
-    "quiz"
-  ],
+  "keywords": ["skills", "diff", "explanation", "notion", "artifact", "korean"],
   "skills": ["./skills/"]
 }

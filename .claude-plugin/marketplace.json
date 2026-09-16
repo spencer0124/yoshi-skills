@@ -1,26 +1,26 @@
 {
-  "name": "explain-diff",
+  "name": "yoshi-skills",
   "owner": {
     "name": "spencer0124"
   },
   "metadata": {
-    "description": "Single-plugin marketplace for the explain-diff skill.",
-    "version": "1.0.0",
+    "description": "spencer0124's personal Claude skill collection.",
+    "version": "2.0.0",
     "pluginRoot": "."
   },
   "plugins": [
     {
-      "name": "explain-diff",
+      "name": "yoshi-skills",
       "source": "./",
-      "description": "Explain a code change as a self-contained interactive HTML page — background, glossary, intuition, literate code walkthrough, and a five-question self-check quiz.",
-      "version": "1.0.0",
+      "description": "A collection of personal Claude skills: explain-diff, notion-artifact, deep-concrete-explainer, tone-polish-kr.",
+      "version": "2.0.0",
       "keywords": [
+        "skills",
         "diff",
-        "code-review",
         "explanation",
-        "documentation",
-        "onboarding",
-        "quiz"
+        "notion",
+        "artifact",
+        "korean"
       ]
     }
   ]

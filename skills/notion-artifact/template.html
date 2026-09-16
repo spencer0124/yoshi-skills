@@ -1,0 +1,123 @@
+<title>페이지 제목</title>
+<style>
+/* ⬇ notion.css 전체를 여기에 붙인다 */
+</style>
+
+<div class="shell">
+<div class="page">
+
+<span class="title-icon">📌</span>
+<h1 class="title">페이지 제목</h1>
+<p class="sub">한 줄 부제, 없으면 삭제</p>
+
+<div class="callout blue"><span class="icon">📌</span><div>
+결론 한 문장. 둘째 문장은 근거 하나.
+</div></div>
+
+<h2>1. As-is</h2>
+<ul>
+  <li>상위 항목 (명사구)
+    <ul>
+      <li>하위 사실 1</li>
+      <li>하위 사실 2</li>
+    </ul>
+  </li>
+  <li>상위 항목 2
+    <ul>
+      <li>하위 사실 3</li>
+      <li>하위 사실 4</li>
+    </ul>
+  </li>
+</ul>
+<h3>기존 응답값</h3>
+<pre><code><span class="c">// 실제 응답값</span>
+{ "key": <span class="old">"이전 값"</span> }</code></pre>
+
+<h2>2. To-be</h2>
+<ul>
+  <li>상위 항목
+    <ul><li>하위 사실 1</li><li>하위 사실 2</li></ul>
+  </li>
+  <li>상위 항목 2
+    <ul><li>하위 사실 3</li><li>하위 사실 4</li></ul>
+  </li>
+</ul>
+<pre><code>{ "key": <span class="hl">"새 값"</span> }</code></pre>
+
+<!-- 도표는 문서당 2개까지. 아래 figcaption 은 읽는 법을 말하는 한 문장이다 -->
+<figure>
+<div class="mermaid">
+flowchart LR
+  A[입력] --> B[변환]
+  B --> C[출력]
+</div>
+<figcaption>왼쪽에서 오른쪽으로 값이 한 번만 바뀐다.</figcaption>
+</figure>
+
+<h2>3. 두 안의 차이</h2>
+<div class="tbl"><table>
+<thead><tr><th>축</th><th>As-is</th><th>To-be</th></tr></thead>
+<tbody>
+<tr><td class="k">축 1</td><td>값</td><td>값</td></tr>
+<tr><td class="k">축 2</td><td>값</td><td>값</td></tr>
+</tbody></table></div>
+
+<hr>
+
+<details>
+<summary>상세, 접어둘 내용</summary>
+<div class="body">
+<p class="dim">출처 2026-09-16</p>
+<div class="tbl"><table>
+<thead><tr><th>유형</th><th class="n">건</th><th>예시</th></tr></thead>
+<tbody><tr><td><span class="pill bg-orange">A</span> 유형</td><td class="n">19</td><td><code>example</code></td></tr></tbody>
+</table></div>
+</div>
+</details>
+
+</div>
+<!-- reference 모드에서만 남긴다. note 모드면 <nav> 와 아래 첫 스크립트를 지운다 -->
+<nav class="toc" aria-label="목차"></nav>
+</div>
+
+<script>
+/* 목차. 실제 헤딩 레벨이 건너뛰어도(H1 다음 H3) 들여쓰기는 1단씩만 내려간다 */
+(function(){
+  var toc = document.querySelector('.toc');
+  if(!toc) return;
+  var hs = [].slice.call(document.querySelectorAll('.page h1:not(.title), .page h2, .page h3'))
+             .filter(function(h){ return !h.closest('details'); });
+  if(hs.length < 3){ toc.remove(); return; }
+  var levels = hs.map(function(h){ return +h.tagName[1]; });
+  var uniq = levels.filter(function(v,i,a){ return a.indexOf(v) === i; }).sort();
+  var links = {};
+  hs.forEach(function(h, i){
+    h.id = h.id || 'h' + i;
+    var a = document.createElement('a');
+    a.href = '#' + h.id;
+    a.textContent = h.textContent;
+    a.className = 'l' + (uniq.indexOf(levels[i]) + 1);
+    toc.appendChild(a);
+    links[h.id] = a;
+  });
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(!e.isIntersecting) return;
+      var on = toc.querySelector('.on'); if(on) on.classList.remove('on');
+      links[e.target.id].classList.add('on');
+    });
+  }, { rootMargin: '0px 0px -70% 0px' });
+  hs.forEach(function(h){ io.observe(h); });
+})();
+</script>
+
+<!-- 도표가 없으면 아래 스크립트를 지운다 -->
+<script type="module">
+if (document.querySelector('.mermaid')) {
+  const mermaid = (await import('https://cdn.jsdelivr.net/npm/mermaid@11/+esm')).default;
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches
+            && document.documentElement.dataset.theme !== 'light';
+  mermaid.initialize({ startOnLoad: true, securityLevel: 'strict',
+                       theme: dark ? 'dark' : 'neutral', fontFamily: 'inherit' });
+}
+</script>
